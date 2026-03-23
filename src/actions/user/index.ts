@@ -5,6 +5,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { createUser, findUser, updateSubscription } from "./queries";
 import { refreshToken } from "@/lib/fetch";
+import { expiresAtFromExpiresIn } from "@/lib/instagram-meta";
 import { updateIntegration } from "../integrations/queries";
 import { stripe } from "@/lib/stripe";
 
@@ -22,25 +23,29 @@ export const onBoardUser = async () => {
     if (found) {
       if (found.integrations.length > 0) {
         const today = new Date();
-        const time_left =
-          found.integrations[0].expiresAt?.getTime()! - today.getTime();
+        const expiresAt = found.integrations[0].expiresAt;
+        const time_left = expiresAt
+          ? expiresAt.getTime() - today.getTime()
+          : -86400000;
 
         const days = Math.round(time_left / (1000 * 3600 * 24));
         if (days < 5) {
           console.log("refresh");
-
-          const refresh = await refreshToken(found.integrations[0].token);
-
-          const today = new Date();
-          const expire_date = today.setDate(today.getDate() + 60);
-
-          const update_token = await updateIntegration(
-            refresh.access_token,
-            new Date(expire_date),
-            found.integrations[0].id
-          );
-          if (!update_token) {
-            console.log("Update token failed");
+          try {
+            const refresh = await refreshToken(found.integrations[0].token);
+            if (refresh?.access_token) {
+              const newExpires = expiresAtFromExpiresIn(refresh);
+              const update_token = await updateIntegration(
+                refresh.access_token,
+                newExpires,
+                found.integrations[0].id
+              );
+              if (!update_token) {
+                console.log("Update token failed");
+              }
+            }
+          } catch (e) {
+            console.log("Instagram token refresh failed", e);
           }
         }
       }

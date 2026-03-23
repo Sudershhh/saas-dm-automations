@@ -24,20 +24,38 @@ const IntegrationCard = ({ description, icon, strategy, title }: Props) => {
     (integration) => integration.name === strategy
   );
 
+  const isInstagram = strategy === "INSTAGRAM";
+
   return (
     <div className="border-2 border-[#3352CC] rounded-2xl gap-x-5 p-5 flex items-center justify-between">
       {icon}
       <div className="flex flex-col flex-1">
         <h3 className="text-xl"> {title}</h3>
         <p className="text-[#9D9D9D] text-base ">{description}</p>
+        {integrated && isInstagram && (
+          <p className="text-sm text-green-500/90 mt-1">Connected</p>
+        )}
       </div>
-      <Button
-        onClick={onInstaOAuth}
-        disabled={integrated?.name === strategy}
-        className="bg-gradient-to-br text-white rounded-full text-lg from-[#3352CC] font-medium to-[#1C2D70] hover:opacity-70 transition duration-100"
-      >
-        {integrated ? "Connected" : "Connect"}
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+        {isInstagram && integrated ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onInstaOAuth}
+            className="rounded-full text-lg border-[#3352CC] hover:bg-[#3352CC]/20"
+          >
+            Reconnect
+          </Button>
+        ) : (
+          <Button
+            onClick={onInstaOAuth}
+            disabled={integrated?.name === strategy}
+            className="bg-gradient-to-br text-white rounded-full text-lg from-[#3352CC] font-medium to-[#1C2D70] hover:opacity-70 transition duration-100"
+          >
+            {integrated ? "Connected" : "Connect"}
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

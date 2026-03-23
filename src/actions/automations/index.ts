@@ -14,6 +14,7 @@ import {
 } from "./queries";
 
 import { findUser } from "../user/queries";
+import { ensureFreshInstagramToken } from "../integrations/ensure-token";
 
 export const createAutomations = async (id?: string) => {
   const user = await onCurrentUser();
@@ -149,14 +150,28 @@ export const deleteKeyword = async (id: string) => {
 export const getProfilePosts = async () => {
   const user = await onCurrentUser();
   try {
+    await ensureFreshInstagramToken(user.id);
     const profile = await findUser(user.id);
+    const token = profile?.integrations?.[0]?.token;
+    if (!token) {
+      console.log(" Error in getting posts: no Instagram integration token");
+      return { status: 404 };
+    }
     const posts = await fetch(
-      `${process.env.INSTAGRAM_BASE_URL}/me/media?fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=${profile?.integrations[0].token}`
+      `${process.env.INSTAGRAM_BASE_URL}/me/media?fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=${token}`
     );
     const parsed = await posts.json();
-    if (parsed) return { status: 200, data: parsed };
-    console.log(" Error in getting posts");
-    return { status: 404 };
+    // Instagram returns { data: [...], paging? } on success, or { error: {...} } on failure.
+    // Never return 200 unless we have a real media array — UI does data.data.data.map().
+    if (
+      parsed &&
+      !parsed.error &&
+      Array.isArray(parsed.data)
+    ) {
+      return { status: 200, data: parsed };
+    }
+    console.log(" Error in getting posts", parsed);
+    return { status: 404, data: parsed };
   } catch (error) {
     console.log(" server side Error in getting posts ", error);
     return { status: 500 };

@@ -11,9 +11,9 @@ const Page = async ({ searchParams: { code } }: Props) => {
   if (code) {
     console.log(code);
     const user = await onIntegrate(code.split("#_")[0]);
-    if (user.status === 200) {
+    if (user.status === 200 && user.data?.firstname && user.data?.lastname) {
       return redirect(
-        `/dashboard/${user.data?.firstname}${user.data?.lastname}/integrations`
+        `/dashboard/${user.data.firstname}-${user.data.lastname}/integrations`
       );
     }
   }
