@@ -1,5 +1,30 @@
 import axios from "axios";
 
+/** Graph API version for Instagram Platform requests (keep in sync across media, messaging, etc.). */
+export const INSTAGRAM_GRAPH_API_VERSION = "v21.0";
+
+/** Must match exactly what you add under Meta app → Instagram → OAuth redirect URIs. */
+export const instagramOAuthRedirectUri = () => {
+  const base = (process.env.NEXT_PUBLIC_HOST_URL ?? "").replace(/\/$/, "");
+  return `${base}/callback/instagram`;
+};
+
+const INSTAGRAM_OAUTH_SCOPES =
+  "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights";
+
+/** Authorize URL: redirect_uri always matches token exchange (generateTokens). */
+export const buildInstagramAuthorizeUrl = () => {
+  const params = new URLSearchParams({
+    enable_fb_login: "0",
+    force_authentication: "1",
+    client_id: process.env.INSTAGRAM_CLIENT_ID as string,
+    redirect_uri: instagramOAuthRedirectUri(),
+    response_type: "code",
+    scope: INSTAGRAM_OAUTH_SCOPES,
+  });
+  return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
+};
+
 /* 
 
 1. Short Lived Access Token
@@ -39,7 +64,7 @@ export const sendDM = async (
 ) => {
   console.log("sending message");
   return await axios.post(
-    `${process.env.INSTAGRAM_BASE_URL}/v21.0/${userId}/messages`,
+    `${process.env.INSTAGRAM_BASE_URL}/${INSTAGRAM_GRAPH_API_VERSION}/${userId}/messages`,
     {
       recipient: {
         id: recieverId,
@@ -66,7 +91,7 @@ export const sendPrivateMessage = async (
 ) => {
   console.log("sending message");
   return await axios.post(
-    `${process.env.INSTAGRAM_BASE_URL}/${userId}/messages`,
+    `${process.env.INSTAGRAM_BASE_URL}/${INSTAGRAM_GRAPH_API_VERSION}/${userId}/messages`,
     {
       recipient: {
         comment_id: recieverId,
@@ -94,10 +119,7 @@ export const generateTokens = async (code: string) => {
     process.env.INSTAGRAM_CLIENT_SECRET as string
   );
   insta_form.append("grant_type", "authorization_code");
-  insta_form.append(
-    "redirect_uri",
-    `${process.env.NEXT_PUBLIC_HOST_URL}/callback/instagram`
-  );
+  insta_form.append("redirect_uri", instagramOAuthRedirectUri());
   insta_form.append("code", code);
 
   const shortTokenRes = await fetch(process.env.INSTAGRAM_TOKEN_URL as string, {

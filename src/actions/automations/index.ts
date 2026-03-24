@@ -13,6 +13,7 @@ import {
   addPost,
 } from "./queries";
 
+import { INSTAGRAM_GRAPH_API_VERSION } from "@/lib/fetch";
 import { findUser } from "../user/queries";
 
 export const createAutomations = async (id?: string) => {
@@ -146,20 +147,60 @@ export const deleteKeyword = async (id: string) => {
   }
 };
 
+const IG_MEDIA_PATH = `${INSTAGRAM_GRAPH_API_VERSION}/me/media`;
+
 export const getProfilePosts = async () => {
   const user = await onCurrentUser();
   try {
     const profile = await findUser(user.id);
-    const posts = await fetch(
-      `${process.env.INSTAGRAM_BASE_URL}/me/media?fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=${profile?.integrations[0].token}`
-    );
-    const parsed = await posts.json();
-    if (parsed) return { status: 200, data: parsed };
-    console.log(" Error in getting posts");
-    return { status: 404 };
+    const token = profile?.integrations?.[0]?.token;
+
+    if (!token) {
+      return {
+        status: 404,
+        data: { message: "Connect Instagram in Integrations to load posts." },
+      };
+    }
+
+    const url = `${process.env.INSTAGRAM_BASE_URL}/${IG_MEDIA_PATH}?fields=id,caption,media_url,media_type,timestamp&limit=10&access_token=${encodeURIComponent(token)}`;
+    const posts = await fetch(url);
+    let parsed: unknown;
+    try {
+      parsed = await posts.json();
+    } catch {
+      return { status: 502, data: { message: "Invalid response from Instagram." } };
+    }
+
+    if (parsed && typeof parsed === "object" && "error" in parsed) {
+      const err = (parsed as { error: { code?: number; message?: string; type?: string } })
+        .error;
+      return {
+        status: 401,
+        data: {
+          code: err.code,
+          message: err.message ?? "Instagram rejected the access token.",
+          type: err.type,
+          needsReconnect: err.code === 190,
+        },
+      };
+    }
+
+    if (!posts.ok) {
+      return {
+        status: posts.status >= 400 && posts.status < 600 ? posts.status : 502,
+        data: { message: "Could not load posts from Instagram." },
+      };
+    }
+
+    const body = parsed as { data?: unknown };
+    if (!Array.isArray(body.data)) {
+      return { status: 502, data: { message: "Unexpected response from Instagram." } };
+    }
+
+    return { status: 200, data: parsed as { data: unknown[]; paging?: unknown } };
   } catch (error) {
     console.log(" server side Error in getting posts ", error);
-    return { status: 500 };
+    return { status: 500, data: { message: "Something went wrong loading posts." } };
   }
 };
 

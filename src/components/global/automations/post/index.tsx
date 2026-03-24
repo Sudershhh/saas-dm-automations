@@ -5,6 +5,8 @@ import TriggerButton from "../trigger-button";
 import { InstagramPostProps } from "@/types/posts.type";
 import { CheckCircle } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Loader from "../../loader";
@@ -14,15 +16,30 @@ type Props = {
 };
 
 const PostButton = ({ id }: Props) => {
+  const params = useParams();
+  const slug = typeof params?.slug === "string" ? params.slug : "";
+  const integrationsHref = slug ? `/dashboard/${slug}/integrations` : "/dashboard";
+
   const { data } = useQueryAutomationPosts();
   const { posts, onSelectPost, mutate, isPending } = useAutomationPosts(id);
 
+  const successBody =
+    data?.status === 200 && data.data && typeof data.data === "object" && "data" in data.data
+      ? (data.data as { data: unknown }).data
+      : null;
+  const mediaList = Array.isArray(successBody) ? (successBody as InstagramPostProps[]) : null;
+
+  const errorPayload =
+    data && data.status !== 200 && data.data && typeof data.data === "object"
+      ? (data.data as { message?: string; needsReconnect?: boolean })
+      : null;
+
   return (
     <TriggerButton label="Attach a post">
-      {data?.status === 200 ? (
+      {mediaList && mediaList.length > 0 ? (
         <div className="flex flex-col gap-y-3 w-full">
           <div className="flex flex-wrap w-full gap-3">
-            {data.data.data.map((post: InstagramPostProps) => (
+            {mediaList.map((post: InstagramPostProps) => (
               <div
                 className="relative w-4/12 aspect-square rounded-lg cursor-pointer overflow-hidden"
                 key={post.id}
@@ -49,7 +66,7 @@ const PostButton = ({ id }: Props) => {
                   alt="post image"
                   className={cn(
                     "hover:opacity-75 transition duration-100",
-                    posts.find((p) => p.postid === post.id) && "opacity-75"
+                    posts.find((p) => p.postid === post.id) && "opacity-75",
                   )}
                 />
               </div>
@@ -63,8 +80,35 @@ const PostButton = ({ id }: Props) => {
             <Loader state={isPending}>Attach Post</Loader>
           </Button>
         </div>
-      ) : (
+      ) : mediaList && mediaList.length === 0 ? (
         <p className="text-text-secondary text-center">No posts found!</p>
+      ) : data?.status === 401 || errorPayload?.needsReconnect ? (
+        <div className="flex flex-col gap-2 text-center text-text-secondary text-sm">
+          <p>
+            Your Instagram session expired or was revoked. Reconnect in Integrations to attach
+            posts.
+          </p>
+          <Button
+            asChild
+            className="bg-gradient-to-br w-full from-[#3352CC] font-medium text-white to-[#1C2D70]"
+          >
+            <Link href={integrationsHref}>Open Integrations</Link>
+          </Button>
+        </div>
+      ) : data?.status === 404 ? (
+        <div className="flex flex-col gap-2 text-center text-text-secondary text-sm">
+          <p>{errorPayload?.message ?? "Connect Instagram first."}</p>
+          <Button
+            asChild
+            className="bg-gradient-to-br w-full from-[#3352CC] font-medium text-white to-[#1C2D70]"
+          >
+            <Link href={integrationsHref}>Open Integrations</Link>
+          </Button>
+        </div>
+      ) : (
+        <p className="text-text-secondary text-center">
+          {errorPayload?.message ?? "No posts found!"}
+        </p>
       )}
     </TriggerButton>
   );
