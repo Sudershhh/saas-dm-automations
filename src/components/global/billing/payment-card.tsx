@@ -1,7 +1,10 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { PLANS } from "@/constants/pages";
+import { useSubscription } from "@/hooks/use-subscription";
 import { cn } from "@/lib/utils";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck, Loader2 } from "lucide-react";
 import React from "react";
 
 type Props = {
@@ -11,6 +14,9 @@ type Props = {
 };
 
 const PaymentCard = ({ current, label, landing }: Props) => {
+  const { onSubscribe, isProcessing } = useSubscription();
+  const upgradingThisCard = label === "PRO" && isProcessing;
+
   return (
     <div
       className={cn(
@@ -83,13 +89,26 @@ const PaymentCard = ({ current, label, landing }: Props) => {
         ) : (
           <Button
             className="rounded-full mt-5 bg-background-80 text-white hover:text-background-80"
-            disabled={label === current}
+            disabled={
+              label === current ||
+              upgradingThisCard ||
+              (label === "FREE" && current === "PRO")
+            }
+            onClick={() => {
+              if (label === "PRO" && current === "FREE") {
+                void onSubscribe();
+              }
+            }}
           >
-            {label === current
-              ? "Active"
-              : current === "PRO"
-              ? "Downgrade"
-              : "Upgrade"}
+            {upgradingThisCard ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : label === current ? (
+              "Active"
+            ) : current === "PRO" ? (
+              "Downgrade"
+            ) : (
+              "Upgrade"
+            )}
           </Button>
         )}
       </div>

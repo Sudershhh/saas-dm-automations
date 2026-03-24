@@ -4,6 +4,7 @@ import { currentUser } from "@clerk/nextjs/server";
 
 import { redirect } from "next/navigation";
 import { createUser, findUser, updateSubscription } from "./queries";
+import { SUBSCRIPTION_PLAN } from "@prisma/client";
 import { refreshToken } from "@/lib/fetch";
 import { updateIntegration } from "../integrations/queries";
 import { stripe } from "@/lib/stripe";
@@ -82,16 +83,25 @@ export const onSubscribe = async (session_id: string) => {
   const user = await onCurrentUser();
   try {
     const session = await stripe.checkout.sessions.retrieve(session_id);
-    if (session) {
-      const subscribed = await updateSubscription(user.id, {
-        customerId: session.customer as string,
-        plan: "PRO",
-      });
+    if (!session) return { status: 404 };
 
-      if (subscribed) return { status: 200 };
-      return { status: 401 };
-    }
-    return { status: 404 };
+    const raw = session.customer;
+    const customerId =
+      typeof raw === "string"
+        ? raw
+        : raw && typeof raw === "object" && "id" in raw && typeof (raw as { id: unknown }).id === "string"
+          ? (raw as { id: string }).id
+          : null;
+
+    if (!customerId) return { status: 400 };
+
+    const subscribed = await updateSubscription(user.id, {
+      customerId,
+      plan: SUBSCRIPTION_PLAN.PRO,
+    });
+
+    if (subscribed) return { status: 200 };
+    return { status: 401 };
   } catch (error) {
     return { status: 500 };
   }
