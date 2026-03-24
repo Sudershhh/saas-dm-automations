@@ -17,17 +17,12 @@ const PostButton = ({ id }: Props) => {
   const { data } = useQueryAutomationPosts();
   const { posts, onSelectPost, mutate, isPending } = useAutomationPosts(id);
 
-  const mediaList =
-    data?.status === 200 && data.data && Array.isArray(data.data.data)
-      ? data.data.data
-      : null;
-
   return (
     <TriggerButton label="Attach a post">
-      {mediaList && mediaList.length > 0 ? (
+      {data?.status === 200 ? (
         <div className="flex flex-col gap-y-3 w-full">
           <div className="flex flex-wrap w-full gap-3">
-            {mediaList.map((post: InstagramPostProps) => (
+            {data.data.data.map((post: InstagramPostProps) => (
               <div
                 className="relative w-4/12 aspect-square rounded-lg cursor-pointer overflow-hidden"
                 key={post.id}
@@ -69,10 +64,7 @@ const PostButton = ({ id }: Props) => {
           </Button>
         </div>
       ) : (
-        <p className="text-text-secondary text-center">
-          No posts found. Connect Instagram, check your token/scopes, or verify
-          the API response.
-        </p>
+        <p className="text-text-secondary text-center">No posts found!</p>
       )}
     </TriggerButton>
   );

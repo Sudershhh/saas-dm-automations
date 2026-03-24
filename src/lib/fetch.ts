@@ -106,11 +106,7 @@ export const generateTokens = async (code: string) => {
   });
 
   const token = await shortTokenRes.json();
-  if (token.error) {
-    console.log("Instagram token exchange error", token);
-    return undefined;
-  }
-  if (token.permissions?.length > 0) {
+  if (token.permissions.length > 0) {
     console.log(token, "got permissions");
     const long_token = await axios.get(
       `${process.env.INSTAGRAM_BASE_URL}/access_token?grant_type=ig_exchange_token&client_secret=${process.env.INSTAGRAM_CLIENT_SECRET}&access_token=${token.access_token}`

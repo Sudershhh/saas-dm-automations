@@ -10,8 +10,6 @@ import {
   prefetchUserProfile,
   prefetchUserAutomations,
 } from "@/react-query/prefetch";
-import { currentUser } from "@clerk/nextjs/server";
-import { ensureFreshInstagramToken } from "@/actions/integrations/ensure-token";
 
 type Props = {
   children: React.ReactNode;
@@ -19,10 +17,7 @@ type Props = {
 };
 
 async function layout({ children, params }: Props) {
-  const clerkUser = await currentUser();
-  if (clerkUser?.id) {
-    await ensureFreshInstagramToken(clerkUser.id);
-  }
+  //React Query
 
   const query = new QueryClient();
 
